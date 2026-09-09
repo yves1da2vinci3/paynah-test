@@ -1,0 +1,24 @@
+{
+  "name": "payment-system",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start:comptes": "nest start comptes --watch",
+    "start:paiements": "nest start paiements --watch",
+    "start:transactions": "nest start transactions --watch",
+    "build": "nest build"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.0.1",
+    "@nestjs/core": "^12.0.1",
+    "@nestjs/platform-express": "^12.0.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.0",
+    "@nestjs/schematics": "^12.0.0",
+    "typescript": "^6.0.2"
+  }
+}
