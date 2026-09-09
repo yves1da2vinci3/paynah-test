@@ -1,0 +1,67 @@
+services:
+  postgres-comptes:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: comptes
+      POSTGRES_PASSWORD: comptes
+      POSTGRES_DB: comptes
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_comptes_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comptes -d comptes"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-paiements:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: paiements
+      POSTGRES_PASSWORD: paiements
+      POSTGRES_DB: paiements
+    ports:
+      - "5434:5432"
+    volumes:
+      - pg_paiements_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paiements -d paiements"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-transactions:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: transactions
+      POSTGRES_PASSWORD: transactions
+      POSTGRES_DB: transactions
+    ports:
+      - "5435:5432"
+    volumes:
+      - pg_transactions_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U transactions -d transactions"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: paynah
+      RABBITMQ_DEFAULT_PASS: paynah
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pg_comptes_data:
+  pg_paiements_data:
+  pg_transactions_data:
