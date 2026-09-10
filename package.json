@@ -15,15 +15,21 @@
     "migration:generate:comptes": "typeorm-ts-node-esm migration:generate apps/comptes/src/infrastructure/persistence/migrations/Init -d apps/comptes/src/infrastructure/persistence/data-source.ts",
     "migration:run:comptes": "typeorm-ts-node-esm migration:run -d apps/comptes/src/infrastructure/persistence/data-source.ts",
     "migration:revert:comptes": "typeorm-ts-node-esm migration:revert -d apps/comptes/src/infrastructure/persistence/data-source.ts",
-    "seed:comptes": "node --loader ts-node/esm apps/comptes/src/infrastructure/persistence/seed.ts"
+    "seed:comptes": "node --loader ts-node/esm apps/comptes/src/infrastructure/persistence/seed.ts",
+    "typeorm:paiements": "typeorm-ts-node-esm -d apps/paiements/src/infrastructure/persistence/data-source.ts",
+    "migration:generate:paiements": "typeorm-ts-node-esm migration:generate apps/paiements/src/infrastructure/persistence/migrations/Init -d apps/paiements/src/infrastructure/persistence/data-source.ts",
+    "migration:run:paiements": "typeorm-ts-node-esm migration:run -d apps/paiements/src/infrastructure/persistence/data-source.ts",
+    "migration:revert:paiements": "typeorm-ts-node-esm migration:revert -d apps/paiements/src/infrastructure/persistence/data-source.ts"
   },
   "dependencies": {
     "@app/shared-kernel": "workspace:*",
+    "@nestjs/axios": "^12.0.0",
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.0.0",
     "@nestjs/core": "^12.0.1",
     "@nestjs/platform-express": "^12.0.1",
     "@nestjs/typeorm": "^12.0.1",
+    "axios": "^1.20.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
