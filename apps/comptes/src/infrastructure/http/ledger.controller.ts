@@ -1,4 +1,13 @@
-import { Body, Controller, Headers, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { HEADER_CORRELATION_ID } from '@app/shared-kernel';
 import { CreditWalletUseCase } from '../../application/credit-wallet.use-case.js';
@@ -15,6 +24,7 @@ export class LedgerController {
   ) {}
 
   @Post(':id/debit')
+  @HttpCode(HttpStatus.OK)
   debitWallet(
     @Param('id') id: string,
     @Body() dto: LedgerMutationDto,
@@ -30,6 +40,7 @@ export class LedgerController {
   }
 
   @Post(':id/credit')
+  @HttpCode(HttpStatus.OK)
   creditWallet(
     @Param('id') id: string,
     @Body() dto: LedgerMutationDto,
