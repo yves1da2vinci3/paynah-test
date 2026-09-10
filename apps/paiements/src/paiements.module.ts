@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ACCOUNTS_PORT } from './application/ports/accounts.port.js';
+import { validatePaiementsEnv } from './infrastructure/config/env.validation.js';
+import { AccountsHttpClient } from './infrastructure/http/accounts.client.js';
+import { PaymentEntity } from './infrastructure/persistence/entities/payment.entity.js';
 import { PaiementsController } from './paiements.controller.js';
 import { PaiementsService } from './paiements.service.js';
-import { validatePaiementsEnv } from './infrastructure/config/env.validation.js';
-import { PaymentEntity } from './infrastructure/persistence/entities/payment.entity.js';
 
 @Module({
   imports: [
@@ -13,6 +16,7 @@ import { PaymentEntity } from './infrastructure/persistence/entities/payment.ent
       envFilePath: ['.env'],
       validate: validatePaiementsEnv,
     }),
+    HttpModule.register({ timeout: 2000, maxRedirects: 0 }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -29,6 +33,9 @@ import { PaymentEntity } from './infrastructure/persistence/entities/payment.ent
     TypeOrmModule.forFeature([PaymentEntity]),
   ],
   controllers: [PaiementsController],
-  providers: [PaiementsService],
+  providers: [
+    PaiementsService,
+    { provide: ACCOUNTS_PORT, useClass: AccountsHttpClient },
+  ],
 })
 export class PaiementsModule {}
