@@ -8,6 +8,9 @@
     "start:paiements": "nest start paiements --watch",
     "start:transactions": "nest start transactions --watch",
     "build": "nest build",
+    "build:shared-kernel": "tsc -p libs/shared-kernel/tsconfig.lib.json",
+    "prebuild:comptes": "pnpm build:shared-kernel",
+    "build:comptes": "nest build comptes",
     "typeorm:comptes": "typeorm-ts-node-esm -d apps/comptes/src/infrastructure/persistence/data-source.ts",
     "migration:generate:comptes": "typeorm-ts-node-esm migration:generate apps/comptes/src/infrastructure/persistence/migrations/Init -d apps/comptes/src/infrastructure/persistence/data-source.ts",
     "migration:run:comptes": "typeorm-ts-node-esm migration:run -d apps/comptes/src/infrastructure/persistence/data-source.ts",
@@ -15,6 +18,7 @@
     "seed:comptes": "node --loader ts-node/esm apps/comptes/src/infrastructure/persistence/seed.ts"
   },
   "dependencies": {
+    "@app/shared-kernel": "workspace:*",
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.0.0",
     "@nestjs/core": "^12.0.1",
@@ -33,6 +37,8 @@
     "@nestjs/schematics": "^12.0.0",
     "@types/node": "^22.20.2",
     "ts-node": "^10.9.2",
-    "typescript": "^6.0.2"
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^6.0.2",
+    "webpack": "^5.110.3"
   }
 }

@@ -2,8 +2,13 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AccountsService } from './application/accounts.service.js';
+import { CreditWalletUseCase } from './application/credit-wallet.use-case.js';
+import { DebitWalletUseCase } from './application/debit-wallet.use-case.js';
+import { ServiceAuthGuard } from './infrastructure/auth/service-auth.guard.js';
 import { validateComptesEnv } from './infrastructure/config/env.validation.js';
 import { AccountsController } from './infrastructure/http/accounts.controller.js';
+import { LedgerController } from './infrastructure/http/ledger.controller.js';
+import { LedgerEntry } from './infrastructure/persistence/entities/ledger-entry.entity.js';
 import { User } from './infrastructure/persistence/entities/user.entity.js';
 import { Wallet } from './infrastructure/persistence/entities/wallet.entity.js';
 
@@ -27,9 +32,14 @@ import { Wallet } from './infrastructure/persistence/entities/wallet.entity.js';
         synchronize: false,
       }),
     }),
-    TypeOrmModule.forFeature([User, Wallet]),
+    TypeOrmModule.forFeature([User, Wallet, LedgerEntry]),
   ],
-  controllers: [AccountsController],
-  providers: [AccountsService],
+  controllers: [AccountsController, LedgerController],
+  providers: [
+    AccountsService,
+    DebitWalletUseCase,
+    CreditWalletUseCase,
+    ServiceAuthGuard,
+  ],
 })
 export class ComptesModule {}
