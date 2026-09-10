@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaiementsController } from './paiements.controller.js';
 import { PaiementsService } from './paiements.service.js';
 import { validatePaiementsEnv } from './infrastructure/config/env.validation.js';
+import { PaymentEntity } from './infrastructure/persistence/entities/payment.entity.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { validatePaiementsEnv } from './infrastructure/config/env.validation.js'
         synchronize: false,
       }),
     }),
+    TypeOrmModule.forFeature([PaymentEntity]),
   ],
   controllers: [PaiementsController],
   providers: [PaiementsService],
