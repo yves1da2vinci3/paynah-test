@@ -8,10 +8,10 @@
     "start:paiements": "nest start paiements --watch",
     "start:transactions": "nest start transactions --watch",
     "build": "nest build",
-    "typeorm:comptes": "typeorm-ts-node-commonjs -d apps/comptes/src/infrastructure/persistence/data-source.ts",
-    "migration:generate:comptes": "pnpm typeorm:comptes -- migration:generate apps/comptes/src/infrastructure/persistence/migrations/Init",
-    "migration:run:comptes": "pnpm typeorm:comptes -- migration:run",
-    "migration:revert:comptes": "pnpm typeorm:comptes -- migration:revert"
+    "typeorm:comptes": "typeorm-ts-node-esm -d apps/comptes/src/infrastructure/persistence/data-source.ts",
+    "migration:generate:comptes": "typeorm-ts-node-esm migration:generate apps/comptes/src/infrastructure/persistence/migrations/Init -d apps/comptes/src/infrastructure/persistence/data-source.ts",
+    "migration:run:comptes": "typeorm-ts-node-esm migration:run -d apps/comptes/src/infrastructure/persistence/data-source.ts",
+    "migration:revert:comptes": "typeorm-ts-node-esm migration:revert -d apps/comptes/src/infrastructure/persistence/data-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
