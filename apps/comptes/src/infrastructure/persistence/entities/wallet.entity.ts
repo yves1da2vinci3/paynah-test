@@ -7,6 +7,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   Unique,
+  type Relation,
 } from 'typeorm';
 import { User } from './user.entity.js';
 
@@ -22,7 +23,7 @@ export class Wallet {
 
   @ManyToOne(() => User, (u) => u.wallets, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user!: User;
+  user!: Relation<User>;
 
   @Column({ type: 'char', length: 3 })
   currency!: string;

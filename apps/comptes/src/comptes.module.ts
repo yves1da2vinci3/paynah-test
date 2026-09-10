@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ComptesController } from './comptes.controller.js';
-import { ComptesService } from './comptes.service.js';
+import { AccountsService } from './application/accounts.service.js';
 import { validateComptesEnv } from './infrastructure/config/env.validation.js';
+import { AccountsController } from './infrastructure/http/accounts.controller.js';
+import { User } from './infrastructure/persistence/entities/user.entity.js';
+import { Wallet } from './infrastructure/persistence/entities/wallet.entity.js';
 
 @Module({
   imports: [
@@ -25,8 +27,9 @@ import { validateComptesEnv } from './infrastructure/config/env.validation.js';
         synchronize: false,
       }),
     }),
+    TypeOrmModule.forFeature([User, Wallet]),
   ],
-  controllers: [ComptesController],
-  providers: [ComptesService],
+  controllers: [AccountsController],
+  providers: [AccountsService],
 })
 export class ComptesModule {}

@@ -11,7 +11,8 @@
     "typeorm:comptes": "typeorm-ts-node-esm -d apps/comptes/src/infrastructure/persistence/data-source.ts",
     "migration:generate:comptes": "typeorm-ts-node-esm migration:generate apps/comptes/src/infrastructure/persistence/migrations/Init -d apps/comptes/src/infrastructure/persistence/data-source.ts",
     "migration:run:comptes": "typeorm-ts-node-esm migration:run -d apps/comptes/src/infrastructure/persistence/data-source.ts",
-    "migration:revert:comptes": "typeorm-ts-node-esm migration:revert -d apps/comptes/src/infrastructure/persistence/data-source.ts"
+    "migration:revert:comptes": "typeorm-ts-node-esm migration:revert -d apps/comptes/src/infrastructure/persistence/data-source.ts",
+    "seed:comptes": "node --loader ts-node/esm apps/comptes/src/infrastructure/persistence/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

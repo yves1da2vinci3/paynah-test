@@ -4,8 +4,9 @@ import {
   Entity,
   OneToMany,
   PrimaryGeneratedColumn,
+  type Relation,
 } from 'typeorm';
-import { Wallet } from './wallet.entity.js';
+import type { Wallet } from './wallet.entity.js';
 
 @Entity({ name: 'users' })
 export class User {
@@ -18,6 +19,6 @@ export class User {
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt!: Date;
 
-  @OneToMany(() => Wallet, (w) => w.user)
-  wallets!: Wallet[];
+  @OneToMany('Wallet', 'user')
+  wallets!: Relation<Wallet[]>;
 }
