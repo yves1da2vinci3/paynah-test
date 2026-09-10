@@ -18,7 +18,6 @@
     "strict": true,
     "strictPropertyInitialization": false,
     "types": [
-      "vitest/globals",
       "node"
     ],
     "paths": {
@@ -33,9 +32,6 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/payment-system/tsconfig.app.json"
-    },
-    {
       "path": "./apps/comptes/tsconfig.app.json"
     },
     {
@@ -43,6 +39,9 @@
     },
     {
       "path": "./apps/transactions/tsconfig.app.json"
+    },
+    {
+      "path": "./libs/shared-kernel/tsconfig.lib.json"
     }
   ]
 }
