@@ -8,13 +8,18 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
-import { QueryFailedError, Repository } from 'typeorm';
-import { ErrorCode } from '@app/shared-kernel';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
+import {
+  ErrorCode,
+  type PaymentFailedEvent,
+  type PaymentSucceededEvent,
+} from '@app/shared-kernel';
 import {
   assertTransition,
   PaymentStatus,
 } from '../domain/payment-status.js';
 import { IdempotencyKeyEntity } from '../infrastructure/persistence/entities/idempotency-key.entity.js';
+import { OutboxEventEntity } from '../infrastructure/persistence/entities/outbox-event.entity.js';
 import { PaymentEntity } from '../infrastructure/persistence/entities/payment.entity.js';
 import { hashPaymentRequest } from './hash-payment-request.js';
 import { ACCOUNTS_PORT, type AccountsPort } from './ports/accounts.port.js';
@@ -63,6 +68,7 @@ export type InitiatePaymentResult = {
 @Injectable()
 export class InitiatePaymentUseCase {
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(PaymentEntity)
     private readonly payments: Repository<PaymentEntity>,
     @InjectRepository(IdempotencyKeyEntity)
@@ -177,10 +183,7 @@ export class InitiatePaymentUseCase {
       });
     } catch (e) {
       const code = extractFailureCode(e);
-      assertTransition(payment.status, PaymentStatus.FAILED);
-      payment.status = PaymentStatus.FAILED;
-      payment.failureCode = code;
-      await this.payments.save(payment);
+      await this.finalizeWithOutbox(payment, PaymentStatus.FAILED, code);
       throw e;
     }
 
@@ -204,16 +207,93 @@ export class InitiatePaymentUseCase {
         operationId: `${payment.id}:compensate`,
         correlationId: input.correlationId,
       });
-      assertTransition(payment.status, PaymentStatus.COMPENSATED);
-      payment.status = PaymentStatus.COMPENSATED;
-      payment.failureCode = ErrorCode.DOWNSTREAM_UNAVAILABLE;
-      await this.payments.save(payment);
+      await this.finalizeWithOutbox(
+        payment,
+        PaymentStatus.COMPENSATED,
+        ErrorCode.DOWNSTREAM_UNAVAILABLE,
+      );
       throw e;
     }
 
-    assertTransition(payment.status, PaymentStatus.COMPLETED);
-    payment.status = PaymentStatus.COMPLETED;
-    await this.payments.save(payment);
+    await this.finalizeWithOutbox(payment, PaymentStatus.COMPLETED, null);
     return payment;
+  }
+
+  private async finalizeWithOutbox(
+    payment: PaymentEntity,
+    status:
+      | PaymentStatus.COMPLETED
+      | PaymentStatus.FAILED
+      | PaymentStatus.COMPENSATED,
+    failureCode: string | null,
+  ): Promise<void> {
+    assertTransition(payment.status, status);
+
+    await this.dataSource.transaction(async (manager) => {
+      payment.status = status;
+      payment.failureCode = failureCode;
+      await manager.save(payment);
+
+      const eventId = randomUUID();
+      const occurredAt = new Date().toISOString();
+
+      if (status === PaymentStatus.COMPLETED) {
+        const event: PaymentSucceededEvent = {
+          event_id: eventId,
+          event_type: 'payment.succeeded',
+          occurred_at: occurredAt,
+          correlation_id: payment.correlationId,
+          payload: {
+            payment_id: payment.id,
+            source_account_id: payment.sourceAccountId,
+            destination_account_id: payment.destinationAccountId,
+            amount_minor: payment.amountMinor,
+            currency: payment.currency.trim(),
+          },
+        };
+        await manager.save(
+          manager.create(OutboxEventEntity, {
+            id: randomUUID(),
+            eventId,
+            eventType: event.event_type,
+            routingKey: event.event_type,
+            payload: event as unknown as Record<string, unknown>,
+            correlationId: payment.correlationId,
+            publishedAt: null,
+            attempts: 0,
+            lastError: null,
+          }),
+        );
+        return;
+      }
+
+      const event: PaymentFailedEvent = {
+        event_id: eventId,
+        event_type: 'payment.failed',
+        occurred_at: occurredAt,
+        correlation_id: payment.correlationId,
+        payload: {
+          payment_id: payment.id,
+          source_account_id: payment.sourceAccountId,
+          destination_account_id: payment.destinationAccountId,
+          amount_minor: payment.amountMinor,
+          currency: payment.currency.trim(),
+          reason_code: failureCode ?? ErrorCode.DOWNSTREAM_UNAVAILABLE,
+        },
+      };
+      await manager.save(
+        manager.create(OutboxEventEntity, {
+          id: randomUUID(),
+          eventId,
+          eventType: event.event_type,
+          routingKey: event.event_type,
+          payload: event as unknown as Record<string, unknown>,
+          correlationId: payment.correlationId,
+          publishedAt: null,
+          attempts: 0,
+          lastError: null,
+        }),
+      );
+    });
   }
 }

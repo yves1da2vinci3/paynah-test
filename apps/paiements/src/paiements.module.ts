@@ -9,6 +9,7 @@ import { AccountsHttpClient } from './infrastructure/http/accounts.client.js';
 import { PaymentsController } from './infrastructure/http/payments.controller.js';
 import { PaymentEntity } from './infrastructure/persistence/entities/payment.entity.js';
 import { IdempotencyKeyEntity } from './infrastructure/persistence/entities/idempotency-key.entity.js';
+import { OutboxEventEntity } from './infrastructure/persistence/entities/outbox-event.entity.js';
 import { PaiementsController } from './paiements.controller.js';
 import { PaiementsService } from './paiements.service.js';
 
@@ -33,7 +34,11 @@ import { PaiementsService } from './paiements.service.js';
         synchronize: false,
       }),
     }),
-    TypeOrmModule.forFeature([PaymentEntity, IdempotencyKeyEntity]),
+    TypeOrmModule.forFeature([
+      PaymentEntity,
+      IdempotencyKeyEntity,
+      OutboxEventEntity,
+    ]),
   ],
   controllers: [PaiementsController, PaymentsController],
   providers: [
