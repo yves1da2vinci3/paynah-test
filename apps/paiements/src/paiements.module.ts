@@ -6,7 +6,9 @@ import { ACCOUNTS_PORT } from './application/ports/accounts.port.js';
 import { InitiatePaymentUseCase } from './application/initiate-payment.use-case.js';
 import { validatePaiementsEnv } from './infrastructure/config/env.validation.js';
 import { AccountsHttpClient } from './infrastructure/http/accounts.client.js';
+import { PaymentsController } from './infrastructure/http/payments.controller.js';
 import { PaymentEntity } from './infrastructure/persistence/entities/payment.entity.js';
+import { IdempotencyKeyEntity } from './infrastructure/persistence/entities/idempotency-key.entity.js';
 import { PaiementsController } from './paiements.controller.js';
 import { PaiementsService } from './paiements.service.js';
 
@@ -31,9 +33,9 @@ import { PaiementsService } from './paiements.service.js';
         synchronize: false,
       }),
     }),
-    TypeOrmModule.forFeature([PaymentEntity]),
+    TypeOrmModule.forFeature([PaymentEntity, IdempotencyKeyEntity]),
   ],
-  controllers: [PaiementsController],
+  controllers: [PaiementsController, PaymentsController],
   providers: [
     PaiementsService,
     InitiatePaymentUseCase,
