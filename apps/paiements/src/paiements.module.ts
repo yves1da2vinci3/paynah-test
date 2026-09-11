@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ACCOUNTS_PORT } from './application/ports/accounts.port.js';
+import { InitiatePaymentUseCase } from './application/initiate-payment.use-case.js';
 import { validatePaiementsEnv } from './infrastructure/config/env.validation.js';
 import { AccountsHttpClient } from './infrastructure/http/accounts.client.js';
 import { PaymentEntity } from './infrastructure/persistence/entities/payment.entity.js';
@@ -35,6 +36,7 @@ import { PaiementsService } from './paiements.service.js';
   controllers: [PaiementsController],
   providers: [
     PaiementsService,
+    InitiatePaymentUseCase,
     { provide: ACCOUNTS_PORT, useClass: AccountsHttpClient },
   ],
 })
