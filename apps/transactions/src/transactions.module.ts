@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { RecordTransactionHandler } from './application/commands/record-transaction.handler.js';
 import { validateTransactionsEnv } from './infrastructure/config/env.validation.js';
+import { TransactionsHttpController } from './infrastructure/http/transactions.controller.js';
 import { InboxEventEntity } from './infrastructure/persistence/entities/inbox-event.entity.js';
 import { TransactionEntity } from './infrastructure/persistence/entities/transaction.entity.js';
 import { TransactionsController } from './transactions.controller.js';
@@ -29,7 +31,7 @@ import { TransactionsService } from './transactions.service.js';
     }),
     TypeOrmModule.forFeature([TransactionEntity, InboxEventEntity]),
   ],
-  controllers: [TransactionsController],
-  providers: [TransactionsService],
+  controllers: [TransactionsController, TransactionsHttpController],
+  providers: [TransactionsService, RecordTransactionHandler],
 })
 export class TransactionsModule {}
