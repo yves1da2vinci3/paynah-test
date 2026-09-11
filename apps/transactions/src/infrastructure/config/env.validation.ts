@@ -24,6 +24,10 @@ class TransactionsEnv {
   @IsString()
   @IsNotEmpty()
   TRANSACTIONS_DB_NAME!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  RABBITMQ_URL!: string;
 }
 
 export function validateTransactionsEnv(config: Record<string, unknown>) {

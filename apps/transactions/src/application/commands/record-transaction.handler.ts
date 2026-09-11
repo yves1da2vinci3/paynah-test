@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
-import { QueryFailedError, Repository } from 'typeorm';
+import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { TransactionEntity } from '../../infrastructure/persistence/entities/transaction.entity.js';
 
 export type RecordTransactionCommand = {
@@ -34,15 +34,22 @@ export class RecordTransactionHandler {
     private readonly repo: Repository<TransactionEntity>,
   ) {}
 
-  async execute(cmd: RecordTransactionCommand): Promise<TransactionEntity> {
-    const existing = await this.repo.findOne({
+  async execute(
+    cmd: RecordTransactionCommand,
+    manager?: EntityManager,
+  ): Promise<TransactionEntity> {
+    const repo = manager
+      ? manager.getRepository(TransactionEntity)
+      : this.repo;
+
+    const existing = await repo.findOne({
       where: { operationId: cmd.operationId },
     });
     if (existing) return existing;
 
     try {
-      return await this.repo.save(
-        this.repo.create({
+      return await repo.save(
+        repo.create({
           id: randomUUID(),
           operationId: cmd.operationId,
           eventId: cmd.eventId ?? null,
@@ -60,7 +67,7 @@ export class RecordTransactionHandler {
       );
     } catch (error) {
       if (isUniqueViolation(error)) {
-        const raced = await this.repo.findOne({
+        const raced = await repo.findOne({
           where: { operationId: cmd.operationId },
         });
         if (raced) return raced;

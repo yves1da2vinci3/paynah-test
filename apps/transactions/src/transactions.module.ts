@@ -5,6 +5,7 @@ import { RecordTransactionHandler } from './application/commands/record-transact
 import { GetTransactionHistoryHandler } from './application/queries/get-transaction-history.handler.js';
 import { validateTransactionsEnv } from './infrastructure/config/env.validation.js';
 import { TransactionsHttpController } from './infrastructure/http/transactions.controller.js';
+import { PaymentEventsConsumer } from './infrastructure/messaging/payment.consumer.js';
 import { InboxEventEntity } from './infrastructure/persistence/entities/inbox-event.entity.js';
 import { TransactionEntity } from './infrastructure/persistence/entities/transaction.entity.js';
 import { TransactionsController } from './transactions.controller.js';
@@ -32,7 +33,11 @@ import { TransactionsService } from './transactions.service.js';
     }),
     TypeOrmModule.forFeature([TransactionEntity, InboxEventEntity]),
   ],
-  controllers: [TransactionsController, TransactionsHttpController],
+  controllers: [
+    TransactionsController,
+    TransactionsHttpController,
+    PaymentEventsConsumer,
+  ],
   providers: [
     TransactionsService,
     RecordTransactionHandler,
