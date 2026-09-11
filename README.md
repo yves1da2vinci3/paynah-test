@@ -1,114 +1,133 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Paynah Payment System
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+![Paynah Payment System](docs/cover.png)
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Mini-système de paiement en **3 microservices NestJS**, **une PostgreSQL par service**, orchestration débit → crédit, journal d’opérations.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Stack
 
-## Project setup
+| Couche | Choix |
+|---|---|
+| Runtime | Node.js + TypeScript |
+| Framework | NestJS (monorepo `apps/*` + `libs/shared-kernel`) |
+| Package manager | pnpm |
+| ORM | TypeORM (`synchronize: false`, migrations) |
+| DB | PostgreSQL 16 — 3 instances |
+| Broker | RabbitMQ (prévu pour outbox ; fallback REST possible) |
+| HTTP client | `@nestjs/axios` |
 
-```bash
-$ pnpm install
+| Service | Port HTTP | Postgres hôte |
+|---|---|---|
+| Comptes | `3001` | `5433` |
+| Paiements | `3002` | `5434` |
+| Transactions | `3003` | `5435` |
+
+RabbitMQ : `5672` / UI `15672`. Variables : [`.env.example`](.env.example). Infra : [`docker-compose.yaml`](docker-compose.yaml).
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Client[Client_API]
+  Pay[Paiements_3002]
+  Acc[Comptes_3001]
+  Txn[Transactions_3003]
+  Client -->|POST_GET_payments| Pay
+  Pay -->|"HTTP_S2S debit_credit"| Acc
+  Pay -->|"outbox_or_REST"| Txn
+  Acc --- PgA[(PG_5433)]
+  Pay --- PgP[(PG_5434)]
+  Txn --- PgT[(PG_5435)]
 ```
 
-## Compile and run the project
+---
+
+## Features
+
+- **Comptes** — users, wallets, solde ; débit / crédit atomiques (`UPDATE … WHERE balance >= amount`) ; ledger avec `operation_id` unique (replay idempotent).
+- **Auth S2S** — `x-service-token` sur les endpoints ledger internes.
+- **Paiements (hexa)** — domaine machine à états (`PENDING` → `DEBITED` → `COMPLETED` / `FAILED` / `COMPENSATED`) ; port `AccountsPort` + adapter HTTP vers Comptes (timeout 2s, mapping erreurs).
+- **Shared kernel** — `Money` (`amountMinor`), codes d’erreur, headers, contrats d’événements.
+- **Infra locale** — 3 Postgres + RabbitMQ via Compose ; seed Comptes (`alice` / `bob`).
+
+---
+
+## Quickstart
 
 ```bash
-# development
-$ pnpm run start
+cp .env.example .env
+pnpm install
+docker compose up -d
 
-# watch mode
-$ pnpm run start:dev
+pnpm migration:run:comptes
+pnpm migration:run:paiements
+pnpm seed:comptes
 
-# production mode
-$ pnpm run start:prod
+pnpm start:comptes      # :3001
+pnpm start:paiements    # :3002
+pnpm start:transactions # :3003 (scaffold)
 ```
 
-## Run tests
+Smoke ledger (service Comptes up) :
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+# race 2× débit 80 sur solde 100 → 1 succès + 1×422, balance=20
+./apps/comptes/test/race-debit.sh <WALLET_ID>
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Checklist sujet (PDF)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+| Exigence | Statut | Notes |
+|---|---|---|
+| ≥ 3 microservices NestJS | Fait | `apps/comptes`, `apps/paiements`, `apps/transactions` |
+| 1 Postgres / service | Fait | Compose ports `5433` / `5434` / `5435` |
+| Comptes : users, wallets, balance | Fait | `POST /users`, `POST /accounts`, `GET /accounts/:id/balance` |
+| Comptes : crédit / débit + solde insuffisant | Fait | `422 INSUFFICIENT_FUNDS` ; script `race-debit.sh` |
+| Token service S2S | Fait | Guard `x-service-token` sur debit/credit |
+| Shared types / erreurs / headers | Fait | `libs/shared-kernel` |
+| Paiements : modèle + ports HTTP Comptes | Fait | Entity `payments` + `AccountsHttpClient` |
+| Hexagonal ≥ 1 service | Partiel | Ports/adapters OK ; use case saga + API payments manquants |
+| Timeouts client HTTP | Partiel | Timeout 2s + mapper ; retries / circuit breaker absents |
+| Validation DTO | Partiel | Global pipe + DTOs Comptes ; Paiements/Transactions incomplets |
+| `POST /payments` + `GET /payments/:id` | Reste | Orchestration saga à brancher |
+| Idempotence initiation (`Idempotency-Key`) | Reste | Header partagé seulement |
+| Compensation crédit échoué | Reste | États domaine prêts |
+| Transactions : journal + historique paginé | Reste | Scaffold Hello World |
+| CQRS ≥ 1 flux | Reste | Prévu côté Transactions |
+| Outbox / RabbitMQ ou fallback REST sync | Reste | Broker Compose up ; pas de code relay |
+| Exception filter + erreurs normalisées | Reste | Codes dans shared-kernel |
+| Swagger ou Postman | Reste | — |
+| Tests auto (cas critiques) | Reste | Race manuelle OK |
+| JWT bordure publique | Reste | Optionnel selon sujet |
+| Observabilité (Prometheus / OTel) | Reste | Bonus |
 
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+**Légende :** Fait · Partiel · Reste
+
+---
+
+## Structure repo
+
+```
+apps/
+  comptes/       # ledger + API comptes
+  paiements/     # orchestration (en cours)
+  transactions/  # journal (à faire)
+libs/
+  shared-kernel/ # contrats partagés
+docs/
+  cover.png
+docker-compose.yaml
+.env.example
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Observability
+## Licence
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Projet de test technique — usage privé.
