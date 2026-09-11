@@ -197,7 +197,17 @@ export class InitiatePaymentUseCase {
         correlationId: input.correlationId,
       });
     } catch (e) {
-      // compensation: chap. 04/05
+      await this.accounts.credit({
+        accountId: input.sourceAccountId,
+        amountMinor: input.amountMinor,
+        currency: input.currency,
+        operationId: `${payment.id}:compensate`,
+        correlationId: input.correlationId,
+      });
+      assertTransition(payment.status, PaymentStatus.COMPENSATED);
+      payment.status = PaymentStatus.COMPENSATED;
+      payment.failureCode = ErrorCode.DOWNSTREAM_UNAVAILABLE;
+      await this.payments.save(payment);
       throw e;
     }
 
