@@ -1,11 +1,24 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { RecordTransactionHandler } from '../../application/commands/record-transaction.handler.js';
+import { GetTransactionHistoryHandler } from '../../application/queries/get-transaction-history.handler.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
+import { GetTransactionsQueryDto } from './dto/get-transactions-query.dto.js';
 
 @Controller('transactions')
 export class TransactionsHttpController {
-  constructor(private readonly record: RecordTransactionHandler) {}
+  constructor(
+    private readonly record: RecordTransactionHandler,
+    private readonly history: GetTransactionHistoryHandler,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -40,6 +53,33 @@ export class TransactionsHttpController {
       correlationId: tx.correlationId,
       occurredAt: tx.occurredAt,
       createdAt: tx.createdAt,
+    };
+  }
+
+  @Get()
+  async list(@Query() query: GetTransactionsQueryDto) {
+    const result = await this.history.execute({
+      accountId: query.accountId,
+      walletId: query.walletId,
+      limit: query.limit,
+      cursor: query.cursor,
+      page: query.page,
+    });
+
+    return {
+      items: result.items.map((tx) => ({
+        id: tx.id,
+        paymentId: tx.paymentId,
+        walletId: tx.walletId,
+        direction: tx.direction,
+        amountMinor: tx.amountMinor,
+        currency: tx.currency.trim(),
+        status: tx.status,
+        occurredAt: tx.occurredAt,
+      })),
+      nextCursor: result.nextCursor,
+      page: result.page,
+      limit: result.limit,
     };
   }
 }
