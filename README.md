@@ -54,6 +54,10 @@ flowchart LR
 - **Shared kernel** — `Money` (`amountMinor`), codes d’erreur, headers, contrats d’événements.
 - **Infra locale** — 3 Postgres + RabbitMQ via Compose ; seed Comptes (`alice` / `bob`).
 
+### Communication
+
+Les mutations de solde restent en REST synchrone. La journalisation cible un outbox + RabbitMQ (at-least-once). Un mode dégradé `USE_OUTBOX=false` appelle `POST /transactions` en synchrone pour garantir le livrable si le broker est indisponible ; la cohérence reste acceptable pour le périmètre du test.
+
 ---
 
 ## Quickstart

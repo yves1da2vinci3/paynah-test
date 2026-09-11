@@ -5,9 +5,13 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  Logger,
 } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
+import { firstValueFrom } from 'rxjs';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import {
   ErrorCode,
@@ -67,8 +71,12 @@ export type InitiatePaymentResult = {
 
 @Injectable()
 export class InitiatePaymentUseCase {
+  private readonly logger = new Logger(InitiatePaymentUseCase.name);
+
   constructor(
     private readonly dataSource: DataSource,
+    private readonly config: ConfigService,
+    private readonly http: HttpService,
     @InjectRepository(PaymentEntity)
     private readonly payments: Repository<PaymentEntity>,
     @InjectRepository(IdempotencyKeyEntity)
@@ -153,6 +161,10 @@ export class InitiatePaymentUseCase {
     return { statusCode, body };
   }
 
+  private useOutbox(): boolean {
+    return this.config.getOrThrow<string>('USE_OUTBOX') === 'true';
+  }
+
   private async runSaga(input: {
     sourceAccountId: string;
     destinationAccountId: string;
@@ -183,7 +195,7 @@ export class InitiatePaymentUseCase {
       });
     } catch (e) {
       const code = extractFailureCode(e);
-      await this.finalizeWithOutbox(payment, PaymentStatus.FAILED, code);
+      await this.finalizePayment(payment, PaymentStatus.FAILED, code);
       throw e;
     }
 
@@ -207,7 +219,7 @@ export class InitiatePaymentUseCase {
         operationId: `${payment.id}:compensate`,
         correlationId: input.correlationId,
       });
-      await this.finalizeWithOutbox(
+      await this.finalizePayment(
         payment,
         PaymentStatus.COMPENSATED,
         ErrorCode.DOWNSTREAM_UNAVAILABLE,
@@ -215,11 +227,11 @@ export class InitiatePaymentUseCase {
       throw e;
     }
 
-    await this.finalizeWithOutbox(payment, PaymentStatus.COMPLETED, null);
+    await this.finalizePayment(payment, PaymentStatus.COMPLETED, null);
     return payment;
   }
 
-  private async finalizeWithOutbox(
+  private async finalizePayment(
     payment: PaymentEntity,
     status:
       | PaymentStatus.COMPLETED
@@ -228,11 +240,14 @@ export class InitiatePaymentUseCase {
     failureCode: string | null,
   ): Promise<void> {
     assertTransition(payment.status, status);
+    const useOutbox = this.useOutbox();
 
     await this.dataSource.transaction(async (manager) => {
       payment.status = status;
       payment.failureCode = failureCode;
       await manager.save(payment);
+
+      if (!useOutbox) return;
 
       const eventId = randomUUID();
       const occurredAt = new Date().toISOString();
@@ -295,5 +310,78 @@ export class InitiatePaymentUseCase {
         }),
       );
     });
+
+    if (!useOutbox) {
+      await this.journalViaRest(payment, status);
+    }
+  }
+
+  private async journalViaRest(
+    payment: PaymentEntity,
+    status:
+      | PaymentStatus.COMPLETED
+      | PaymentStatus.FAILED
+      | PaymentStatus.COMPENSATED,
+  ): Promise<void> {
+    const base = this.config.getOrThrow<string>('TRANSACTIONS_BASE_URL');
+    const occurredAt = new Date().toISOString();
+    const currency = payment.currency.trim();
+
+    try {
+      if (status === PaymentStatus.COMPLETED) {
+        await firstValueFrom(
+          this.http.post(`${base}/transactions`, {
+            operationId: `${payment.id}:journal:debit`,
+            paymentId: payment.id,
+            accountId: payment.sourceAccountId,
+            walletId: payment.sourceAccountId,
+            counterpartyWalletId: payment.destinationAccountId,
+            direction: 'DEBIT',
+            amountMinor: payment.amountMinor,
+            currency,
+            status: 'SUCCEEDED',
+            correlationId: payment.correlationId,
+            occurredAt,
+          }),
+        );
+        await firstValueFrom(
+          this.http.post(`${base}/transactions`, {
+            operationId: `${payment.id}:journal:credit`,
+            paymentId: payment.id,
+            accountId: payment.destinationAccountId,
+            walletId: payment.destinationAccountId,
+            counterpartyWalletId: payment.sourceAccountId,
+            direction: 'CREDIT',
+            amountMinor: payment.amountMinor,
+            currency,
+            status: 'SUCCEEDED',
+            correlationId: payment.correlationId,
+            occurredAt,
+          }),
+        );
+        return;
+      }
+
+      await firstValueFrom(
+        this.http.post(`${base}/transactions`, {
+          operationId: `${payment.id}:journal:failed`,
+          paymentId: payment.id,
+          accountId: payment.sourceAccountId,
+          walletId: payment.sourceAccountId,
+          counterpartyWalletId: payment.destinationAccountId,
+          direction: 'TRANSFER',
+          amountMinor: payment.amountMinor,
+          currency,
+          status: 'FAILED',
+          correlationId: payment.correlationId,
+          occurredAt,
+        }),
+      );
+    } catch (e) {
+      this.logger.error(
+        `REST journal fallback failed for payment ${payment.id}: ${String(e)}`,
+      );
+      throw e;
+    }
   }
 }

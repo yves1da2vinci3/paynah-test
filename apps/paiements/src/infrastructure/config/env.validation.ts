@@ -1,5 +1,12 @@
 import { plainToInstance } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsString, Min, validateSync } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  Min,
+  validateSync,
+} from 'class-validator';
 
 class PaiementsEnv {
   @IsInt()
@@ -41,8 +48,7 @@ class PaiementsEnv {
   @IsNotEmpty()
   TRANSACTIONS_BASE_URL!: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsIn(['true', 'false'])
   USE_OUTBOX!: string;
 }
 

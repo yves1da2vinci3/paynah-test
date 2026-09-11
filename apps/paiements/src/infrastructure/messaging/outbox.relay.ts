@@ -5,6 +5,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ClientProxy } from '@nestjs/microservices';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { lastValueFrom } from 'rxjs';
@@ -22,20 +23,29 @@ export class OutboxRelay implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutboxRelay.name);
   private timer?: NodeJS.Timeout;
   private running = false;
+  private enabled = false;
 
   constructor(
+    private readonly config: ConfigService,
     @InjectDataSource() private readonly dataSource: DataSource,
     @Inject(PAYMENTS_BROKER) private readonly broker: ClientProxy,
   ) {}
 
   async onModuleInit() {
+    this.enabled = this.config.getOrThrow<string>('USE_OUTBOX') === 'true';
+    if (!this.enabled) {
+      this.logger.log('USE_OUTBOX=false — relay disabled (REST journal fallback)');
+      return;
+    }
     await this.broker.connect();
     this.timer = setInterval(() => void this.tick(), 500);
   }
 
   async onModuleDestroy() {
     if (this.timer) clearInterval(this.timer);
-    await this.broker.close();
+    if (this.enabled) {
+      await this.broker.close();
+    }
   }
 
   private async tick() {
