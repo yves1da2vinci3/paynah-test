@@ -19,7 +19,11 @@
     "typeorm:paiements": "typeorm-ts-node-esm -d apps/paiements/src/infrastructure/persistence/data-source.ts",
     "migration:generate:paiements": "typeorm-ts-node-esm migration:generate apps/paiements/src/infrastructure/persistence/migrations/Init -d apps/paiements/src/infrastructure/persistence/data-source.ts",
     "migration:run:paiements": "typeorm-ts-node-esm migration:run -d apps/paiements/src/infrastructure/persistence/data-source.ts",
-    "migration:revert:paiements": "typeorm-ts-node-esm migration:revert -d apps/paiements/src/infrastructure/persistence/data-source.ts"
+    "migration:revert:paiements": "typeorm-ts-node-esm migration:revert -d apps/paiements/src/infrastructure/persistence/data-source.ts",
+    "typeorm:transactions": "typeorm-ts-node-esm -d apps/transactions/src/infrastructure/persistence/data-source.ts",
+    "migration:generate:transactions": "typeorm-ts-node-esm migration:generate apps/transactions/src/infrastructure/persistence/migrations/Init -d apps/transactions/src/infrastructure/persistence/data-source.ts",
+    "migration:run:transactions": "typeorm-ts-node-esm migration:run -d apps/transactions/src/infrastructure/persistence/data-source.ts",
+    "migration:revert:transactions": "typeorm-ts-node-esm migration:revert -d apps/transactions/src/infrastructure/persistence/data-source.ts"
   },
   "dependencies": {
     "@app/shared-kernel": "workspace:*",
