@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ACCOUNTS_PORT } from './application/ports/accounts.port.js';
 import { InitiatePaymentUseCase } from './application/initiate-payment.use-case.js';
 import { validatePaiementsEnv } from './infrastructure/config/env.validation.js';
 import { AccountsHttpClient } from './infrastructure/http/accounts.client.js';
 import { PaymentsController } from './infrastructure/http/payments.controller.js';
+import { OutboxRelay } from './infrastructure/messaging/outbox.relay.js';
+import { PAYMENTS_BROKER } from './infrastructure/messaging/payments-broker.token.js';
 import { PaymentEntity } from './infrastructure/persistence/entities/payment.entity.js';
 import { IdempotencyKeyEntity } from './infrastructure/persistence/entities/idempotency-key.entity.js';
 import { OutboxEventEntity } from './infrastructure/persistence/entities/outbox-event.entity.js';
@@ -21,6 +24,22 @@ import { PaiementsService } from './paiements.service.js';
       validate: validatePaiementsEnv,
     }),
     HttpModule.register({ timeout: 2000, maxRedirects: 0 }),
+    ClientsModule.registerAsync([
+      {
+        name: PAYMENTS_BROKER,
+        inject: [ConfigService],
+        useFactory: (config: ConfigService) => ({
+          transport: Transport.RMQ,
+          options: {
+            urls: [config.getOrThrow<string>('RABBITMQ_URL')],
+            exchange: 'payments.events',
+            exchangeType: 'topic',
+            // Nest publish via exchange requires wildcards (topic) or fanout
+            wildcards: true,
+          },
+        }),
+      },
+    ]),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -44,6 +63,7 @@ import { PaiementsService } from './paiements.service.js';
   providers: [
     PaiementsService,
     InitiatePaymentUseCase,
+    OutboxRelay,
     { provide: ACCOUNTS_PORT, useClass: AccountsHttpClient },
   ],
 })
